@@ -37,6 +37,7 @@ suppressPackageStartupMessages(library(biomaRt))
 args <- commandArgs(trailingOnly = TRUE)
 sumstats_file <- args[1]
 output_dir <- args[2]
+model <- if (length(args) < 3) 'snipar' else args[3] # Default: snipar (v0.0.22)
 
 # Check that file and output directory exist
 if (!file.exists(sumstats_file)) {
@@ -49,6 +50,12 @@ if (!dir.exists(output_dir)) {
   cli_abort(c(
     "{output_dir} does not exist",
     "x" = "You've supplied a directory that does not exist."
+  ))
+}
+if (!model %in% c('snipar', 'regenie')) {
+  cli_abort(c(
+    "{model} does not exist",
+    "x" = "You've supplied an unsupported type of model. Options are: snipar (default), regenie"
   ))
 }
 
@@ -71,23 +78,34 @@ theme_set(
 
 # Read the data to be analyzed
 df_sumstats <- read.table(gzfile(sumstats_file), header = TRUE)
-df_sumstats$SNP <- gsub("GSA-", "", df_sumstats$SNP)
-df_sumstats$chromosome <- as.integer(df_sumstats$chromosome)
-
-k_snps <- unique(df_sumstats$SNP)
-cli_alert_info(scales::comma(length(k_snps)) %&% " SNPs found in `" %&% sumstats_file %&% '`.')
 
 # Change the table format to follow the template
 # from https://r-graph-gallery.com/101_Manhattan_plot.html
-fgwas_results <- df_sumstats %>% 
-  dplyr::filter(!is.na(direct_log10_P)) %>% 
-  dplyr::select(
-    "CHR" = chromosome,
-    "BP" = pos,
-    "SNP" = SNP,
-    "P" = direct_log10_P
-  ) %>% 
-  mutate(P = 10^(-P))
+if (model == 'snipar'){
+  fgwas_results <- df_sumstats %>% 
+    dplyr::filter(!is.na(direct_log10_P)) %>% 
+    dplyr::select(
+      "CHR" = chromosome,
+      "BP" = pos,
+      "SNP" = SNP,
+      "P" = direct_log10_P
+    ) %>% 
+    mutate(P = 10^(-P))
+} else if (model == 'regenie') {
+  fgwas_results <- df_sumstats %>% 
+    dplyr::filter(!is.na(LOG10P)) %>% 
+    dplyr::select(
+      "CHR" = CHROM,
+      "BP" = GENPOS,
+      "SNP" = ID,
+      "P" = LOG10P
+    ) %>% 
+    mutate(P = 10^(-P))
+}
+fgwas_results$SNP <- gsub("GSA-", "", fgwas_results$SNP)
+fgwas_results$CHR <- as.integer(fgwas_results$CHR)
+k_snps <- unique(fgwas_results$SNP)
+cli_alert_info(scales::comma(length(k_snps)) %&% " SNPs found in `" %&% sumstats_file %&% '`.')
 
 # Make the gene mappings
 source("utils/01_map_genes.R")
@@ -98,5 +116,7 @@ source("utils/02_qq_plot.R")
 # Make the Manhattan plot
 source("utils/03_manhattan_plot.R")
 
-# Make effect sizes plot
-source("utils/04_effect_sizes.R")
+# Make effect sizes plot (only available for `snipar`)
+if (model == 'snipar'){
+  source("utils/04_effect_sizes.R")
+}
