@@ -64,6 +64,16 @@ ncbi_query <- function(gene_list){
   #' @param ncbi_annotations A dataframe with the query results
   
   library(rentrez)
+
+  if (length(gene_list) == 0){
+    ncbi_annotations <- data.frame(
+      GENE_ID=NA, 
+      GENE_NAME=NA,
+      GENE_DESCRIPTION=NA,
+      GENE_SUMMARY=NA 
+    )
+    return(ncbi_annotations)
+  }
   ncbi_annotations <- lapply(gene_list, function(gene_id){
     search_res <- entrez_search(db="gene", term=paste0(gene_id, "[Ensembl ID]"))
     if(search_res$count == 0) return(NULL)
@@ -96,6 +106,5 @@ ncbi_query <- function(gene_list){
       GENE_SUMMARY=gene_summary 
     )
   }) %>% bind_rows()
-  
   return(ncbi_annotations)
 }
