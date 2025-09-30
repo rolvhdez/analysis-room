@@ -32,6 +32,8 @@ suppressPackageStartupMessages(library(dplyr))
 suppressPackageStartupMessages(library(tidyr))
 suppressPackageStartupMessages(library(rentrez))
 suppressPackageStartupMessages(library(biomaRt))
+suppressPackageStartupMessages(library(data.table))
+suppressPackageStartupMessages(library(R.utils))
 
 # Process arguments
 args <- commandArgs(trailingOnly = TRUE)
@@ -77,7 +79,25 @@ theme_set(
 )
 
 # Read the data to be analyzed
-df_sumstats <- read.table(gzfile(sumstats_file), header = TRUE)
+cli_alert_info("Reading " %&% sumstats_file %&% " ...")
+chunk_size <- 1000000 # Read every 1,000,000 lines
+con <- file(sumstats_file, "r")
+
+df_sumstats = data.table::fread(text = readLines(con, n = chunk_size))
+while (TRUE) {
+  chunk <- readLines(con, n = chunk_size)
+  if (length(chunk) == 0) break 
+  c <- data.table::fread(text = chunk)
+
+  if (!identical(names(c), names(df_sumstats))) {
+    colnames(c) <- names(df_sumstats)
+  }
+  df_sumstats <- rbindlist(list(df_sumstats, c))
+  message("Proccessed " %&% scales::comma(nrow(df_sumstats)) %&% " so far...")
+}
+close(con)
+print(head(df_sumstats))
+quit()
 
 # Change the table format to follow the template
 # from https://r-graph-gallery.com/101_Manhattan_plot.html
