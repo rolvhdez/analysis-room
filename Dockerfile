@@ -16,6 +16,8 @@ RUN apt-get update && \
     libxml2-dev && \
     rm -rf /var/lib/apt/lists/*
 
+WORKDIR /tmp/
+
 # Copy the list of R packages to install first (for better caching)
 COPY renv.lock renv.lock
 COPY .Rprofile .Rprofile
@@ -31,5 +33,3 @@ RUN Rscript -e 'install.packages(c("renv", "BiocManager"))'
 RUN Rscript -e 'BiocManager::install("rentrez")'
 RUN Rscript -e 'BiocManager::install("biomaRt")'
 RUN Rscript -e 'renv::restore(lockfile = "renv.lock", repos = NULL)'
-
-CMD ["/bin/bash"]
