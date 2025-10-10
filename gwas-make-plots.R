@@ -17,7 +17,7 @@
 #
 # `<name of file>.<estimator>.txt.gz`
 #
-# where `estimator` for the type of model that was used in snipar to generate those 
+# where `estimator` for the type of model that was used in snipar to generate those
 # summary statistics, and should have the `.txt.gz` as the default extension.
 #
 # Note: For aesthetic reasons, will only show up to the top 50 gene annotations
@@ -32,12 +32,13 @@ suppressPackageStartupMessages(library(dplyr))
 suppressPackageStartupMessages(library(tidyr))
 suppressPackageStartupMessages(library(rentrez))
 suppressPackageStartupMessages(library(biomaRt))
+suppressPackageStartupMessages(library(data.table))
 
 # Process arguments
 args <- commandArgs(trailingOnly = TRUE)
 sumstats_file <- args[1]
 output_dir <- args[2]
-model <- if (length(args) < 3) 'snipar' else args[3] # Default: snipar (v0.0.22)
+model <- if (length(args) < 3) "snipar" else args[3] # Default: snipar (v0.0.22)
 
 # Check that file and output directory exist
 if (!file.exists(sumstats_file)) {
@@ -52,7 +53,7 @@ if (!dir.exists(output_dir)) {
     "x" = "You've supplied a directory that does not exist."
   ))
 }
-if (!model %in% c('snipar', 'regenie')) {
+if (!model %in% c("snipar", "regenie")) {
   cli_abort(c(
     "{model} does not exist",
     "x" = "You've supplied an unsupported type of model. Options are: snipar (default), regenie"
@@ -66,7 +67,7 @@ source("utils/00_utils.R")
 # Plot theme
 theme_set(
   theme_bw() +
-    theme( 
+    theme(
       panel.border = element_blank(),
       plot.title = element_text(face = "bold", size=16),
       plot.subtitle = element_text(color="#3d3d3d", size=12),
@@ -77,29 +78,29 @@ theme_set(
 )
 
 # Read the data to be analyzed
-df_sumstats <- read.table(gzfile(sumstats_file), header = TRUE)
+df_sumstats <- data.table::fread(sumstats_file, header = TRUE)
 
 # Change the table format to follow the template
 # from https://r-graph-gallery.com/101_Manhattan_plot.html
 if (model == 'snipar'){
-  fgwas_results <- df_sumstats %>% 
-    dplyr::filter(!is.na(direct_log10_P)) %>% 
+  fgwas_results <- df_sumstats %>%
+    dplyr::filter(!is.na(direct_log10_P)) %>%
     dplyr::select(
       "CHR" = chromosome,
       "BP" = pos,
       "SNP" = SNP,
       "P" = direct_log10_P
-    ) %>% 
+    ) %>%
     mutate(P = 10^(-P))
 } else if (model == 'regenie') {
-  fgwas_results <- df_sumstats %>% 
-    dplyr::filter(!is.na(LOG10P)) %>% 
+  fgwas_results <- df_sumstats %>%
+    dplyr::filter(!is.na(LOG10P)) %>%
     dplyr::select(
       "CHR" = CHROM,
       "BP" = GENPOS,
       "SNP" = ID,
       "P" = LOG10P
-    ) %>% 
+    ) %>%
     mutate(P = 10^(-P))
 }
 fgwas_results$SNP <- gsub("GSA-", "", fgwas_results$SNP)
@@ -117,6 +118,6 @@ source("utils/02_qq_plot.R")
 source("utils/03_manhattan_plot.R")
 
 # Make effect sizes plot (only available for `snipar`)
-if (model == 'snipar'){
+if (model == "snipar"){
   source("utils/04_effect_sizes.R")
 }
