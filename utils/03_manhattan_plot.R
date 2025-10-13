@@ -79,10 +79,10 @@ manhattan_plot <- df_manhattan %>%
   # Axis labels
   xlab("Chromosome") +
   ylab(expression(-log[10](italic(p)))) +
+  labs(caption = "No. variants: " %&% scales::comma(length(k_snps)))
   # Modify axis
-  scale_x_continuous(label = df_axis$CHR, breaks = df_axis$CENTER)+
-  scale_y_continuous(expand = c(0,0), breaks=seq(0,12,2), limits=c(0,12))+
-  scale_color_manual(values = rep(c("gray", "steelblue"), 22))+
+  scale_x_continuous(label = df_axis$CHR, breaks = df_axis$CENTER) +
+  scale_color_manual(values = rep(c("gray", "steelblue"), 22)) +
   theme(
     legend.position="none",
     panel.border = element_blank(),
