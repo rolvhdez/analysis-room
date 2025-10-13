@@ -24,7 +24,7 @@ cli_alert_info("Lambda genetic inflation factor: " %&% round(lambda, 4))
 df_qqvalues <- qq_results$qqvalues
 qq_plot <- df_qqvalues %>%
   ggplot(aes(x = theoretical, y = observed)) +
-  geom_point(size = 2.33, alpha = 0.85) +
+  geom_point(size = 2.33, alpha = 0.85, shape = 1) +
   geom_smooth(
     method = "lm", linetype = "dashed", color = "red",
     alpha = 0.85, linewidth = 1, se = FALSE

@@ -44,12 +44,6 @@ df_manhattan <- df_manhattan %>% # add highlighted snps
   right_join(snps_suggested, ., by = c("SNP")) %>%
   mutate(is_suggested = ifelse(is.na(is_suggested), "no", "yes"))
 
-# Gene mappings
-# df_manhattan <- df_manhattan %>%
-#   right_join(ensemble_ids, ., by = "SNP") %>%
-#   right_join(ncbi_gene_mappings, ., by = "GENE_ID") %>%
-#   mutate(GENE_SNP = paste0(SNP, ": ", GENE_NAME))
-
 df_axis <- df_manhattan %>%
   dplyr::select(CHR, BP_CUM) %>%
   group_by(CHR) %>%
@@ -57,40 +51,53 @@ df_axis <- df_manhattan %>%
 
 # Manhattan plot ----
 manhattan_plot <- df_manhattan %>%
-  ggplot(aes(x = BP_CUM, y = -log10(P)))+
-  geom_point(aes(color = as.factor(CHR)), size = 1.3, alpha = 0.8) +
+  ggplot(aes(x = BP_CUM, y = -log10(P))) +
+  geom_point(
+    aes(color = as.factor(CHR)),
+    size = 1.3, shape = 1, alpha = 0.65
+  ) +
   # Highlight SNPs of interest
-  geom_point(data = subset(df_manhattan, is_significant == "yes"),
-             color = "green", size = 2.3) +
-  geom_point(data = subset(df_manhattan, is_suggested == "yes"),
-             color = "orange", size = 1.3) +
-  # Significance lines
-  geom_hline(yintercept = 6, color = "blue", linetype ="dashed")+
-  geom_hline(yintercept = -log10(5e-8), color = "red", linetype = "dashed")+
-  # Mapping labels
-#  geom_label_repel(
-#    data = subset(df_manhattan, df_manhattan$is_significant=="yes"),
-#    aes(label=GENE_SNP),
-#    box.padding = 0.5,
-#    point.padding = 0.3,
-#    max.overlaps = 16,
-#    size = 2.25
-#  ) +
+  geom_point(
+    data = subset(df_manhattan, is_significant == "yes"),
+    color = "green", size = 1.3, shape = 1
+  ) +
+  geom_point(
+    data = subset(df_manhattan, is_suggested == "yes"),
+    color = "orange", size = 1.3, shape = 1
+  ) +
+  # Significance line
+  geom_hline( # High
+    yintercept = -log10(5e-8),
+    color = "red",
+    linetype = "dashed"
+  ) +
+  geom_hline( # Moderate
+    yintercept = 6,
+    color = "blue",
+    linetype = "dashed"
+  ) +
   # Axis labels
   xlab("Chromosome") +
   ylab(expression(-log[10](italic(p)))) +
-  labs(caption = "No. variants: " %&% scales::comma(length(k_snps)))
+  labs(caption = "No. variants: " %&% scales::comma(length(k_snps))) +
+
   # Modify axis
-  scale_x_continuous(label = df_axis$CHR, breaks = df_axis$CENTER) +
-  scale_color_manual(values = rep(c("gray", "steelblue"), 22)) +
+  scale_x_continuous(
+    label = df_axis$CHR,
+    breaks = df_axis$CENTER
+  ) +
+  scale_color_manual(
+    values = rep(c("gray", "steelblue"), 22)
+  ) +
   theme(
-    legend.position="none",
+    legend.position = "none",
     panel.border = element_blank(),
     panel.grid.major.x = element_blank(),
     panel.grid.minor.x = element_blank(),
     plot.title = element_text(face = "bold"),
     panel.spacing = unit(1.5, "lines")
   )
+
 png(
   output_dir %&% "manhattan_plot.png",
   width = 1920 * 2, height = 1920,
