@@ -17,8 +17,9 @@
 #
 # `<name of file>.<estimator>.txt.gz`
 #
-# where `estimator` for the type of model that was used in snipar to generate those 
-# summary statistics, and should have the `.txt.gz` as the default extension.
+# where `estimator` for the type of model that
+# was used in snipar to generate those summary statistics,
+# and should have the `.txt.gz` as the default extension.
 #
 # Note: For aesthetic reasons, will only show up to the top 50 gene annotations
 # among the most significantly-associated loci. But will save a text file with
@@ -30,8 +31,6 @@ suppressPackageStartupMessages(library(ggrepel))
 suppressPackageStartupMessages(library(ggplot2))
 suppressPackageStartupMessages(library(dplyr))
 suppressPackageStartupMessages(library(tidyr))
-suppressPackageStartupMessages(library(rentrez))
-suppressPackageStartupMessages(library(biomaRt))
 suppressPackageStartupMessages(library(data.table))
 suppressPackageStartupMessages(library(R.utils))
 
@@ -39,7 +38,7 @@ suppressPackageStartupMessages(library(R.utils))
 args <- commandArgs(trailingOnly = TRUE)
 sumstats_file <- args[1]
 output_dir <- args[2]
-model <- if (length(args) < 3) 'snipar' else args[3] # Default: snipar (v0.0.22)
+model <- if (length(args) < 3) "snipar" else args[3] # Default: snipar (v0.0.22)
 
 # Check that file and output directory exist
 if (!file.exists(sumstats_file)) {
@@ -54,7 +53,7 @@ if (!dir.exists(output_dir)) {
     "x" = "You've supplied a directory that does not exist."
   ))
 }
-if (!model %in% c('snipar', 'regenie')) {
+if (!model %in% c("snipar", "regenie")) {
   cli_abort(c(
     "{model} does not exist",
     "x" = "You've supplied an unsupported type of model. Options are: snipar (default), regenie"
@@ -123,10 +122,20 @@ if (model == "snipar"){
 fgwas_results$SNP <- gsub("GSA-", "", fgwas_results$SNP)
 fgwas_results$CHR <- as.integer(fgwas_results$CHR)
 k_snps <- unique(fgwas_results$SNP)
-cli_alert_info(scales::comma(length(k_snps)) %&% " SNPs found in `" %&% sumstats_file %&% '`.')
+cli_alert_info(scales::comma(length(k_snps)) %&% " SNPs found in `" %&% sumstats_file %&% "`.")
 
-# Make the gene mappings
-source("utils/01_map_genes.R")
+# --- SUBSET ---
+# To avoid bloating with non-significant SNPs
+# we will create a new data frame with a sampling
+# of 5% for all SNPs p-value > 1e-5
+#
+# This reduces plotting a lot more
+non_significant <- fgwas_results %>%
+  filter(-log10(P) > 1e-5) %>%
+  sample_frac(0.05) # Keep only 5%
+significant <- fgwas_results %>%
+  filter(-log10(P) <= 1e-5)
+fgwas_results <- dplyr::bind_rows(significant, non_significant)
 
 # Make the QQplot
 source("utils/02_qq_plot.R")
@@ -135,6 +144,4 @@ source("utils/02_qq_plot.R")
 source("utils/03_manhattan_plot.R")
 
 # Make effect sizes plot (only available for `snipar`)
-if (model == 'snipar'){
- source("utils/04_effect_sizes.R")
-}
+if (model == "snipar") source("utils/04_effect_sizes.R")
