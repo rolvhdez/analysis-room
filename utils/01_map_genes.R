@@ -4,7 +4,8 @@ ensemble_ids <- fancy_process(
   process = query_biomart,
   message = "Querying BiomaRt for gene mappings",
   # Function arguments
-  snps = fgwas_results %>% filter(P <= 1e-4) %>% pull(SNP) %>% unique()
+  chr = fgwas_results %>% filter(P <= 1e-5) %>% pull(CHR),
+  pos = fgwas_results %>% filter(P <= 1e-5) %>% pull(BP)
 )
 ncbi_gene_mappings <- fancy_process(
   process = ncbi_query,

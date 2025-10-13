@@ -53,20 +53,19 @@ read_sumstats_file <- function(sumstats_path, chunk_size = 1000000) {
   close(con)
   df # Return
 }
-query_biomart <- function(snps) {
+query_biomart <- function(chr, pos) {
   #' Obtain Ensemble ID's through BiomaRt
   #'
   #' @param snps List with rsid's to query
   human_variation <- biomaRt::useMart(biomart = "ENSEMBL_MART_SNP",
                                       dataset = "hsapiens_snp")
-  snp_attributes <- c("refsnp_id",
-                     "ensembl_gene_stable_id")
-  query_mart <- biomaRt::getBM(attributes = snp_attributes,
-                              filters = "snp_filter",
-                              values = snps,
-                              mart = human_variation)
+  query_mart <- biomaRt::getBM(
+    attributes = c("refsnp_id", "chr_name", "chrom_start", "associated_gene"),
+    filters = c("chr_name", "start", "end"),
+    values = list(chr, pos, pos),
+    mart = human_variation
+  )
   colnames(query_mart)[1] <- "SNP"
-
   ensemble_ids <- query_mart %>%
     filter(if_all(everything(), ~ .x != "")) %>%
     rename(GENE_ID = ensembl_gene_stable_id)
