@@ -23,14 +23,24 @@ cli_alert_info("Lambda genetic inflation factor: " %&% round(lambda, 4))
 
 # Make the plot
 qq_plot <- df_qqvalues %>% 
-  ggplot(aes(x=theoretical, y=observed))+
-  geom_point(size=2.33, alpha=0.85)+
-  geom_smooth(method="lm", linetype="dashed", alpha=0.85, linewidth=1, se=FALSE)+
+  ggplot(aes(x = theoretical, y = observed)) +
+  geom_point(size = 2.33, alpha = 0.85) +
+  geom_smooth(
+    method = "lm", linetype = "dashed", color = "red",
+    alpha = 0.85, linewidth = 1, se = FALSE
+  ) +
   labs(
     x = "Theoretical",
-    y = "Observed"
+    y = "Observeded",
+    caption = "No. variants: " %&% scales::comma(length(k_snps))
   )
-png(output_dir %&% "qqplot.png", height=720, width=720*2, res=150, units="px")
+
+# Export
+png(
+  output_dir %&% "qqplot.png",
+  width = 1920 * 2, height = 1920,
+  res = 300, units = "px"
+)
 suppressMessages(print(qq_plot))
 dev.off()
 cli_alert_success("Exported `" %&% output_dir %&% "qqplot.png`")
