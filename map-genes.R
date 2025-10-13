@@ -23,24 +23,13 @@ model <- if (length(args) < 3) "snipar" else args[3] # Default: snipar (v0.0.22)
 source("utils/00_utils.R")
 
 # Read the data to be analyzed
-cli_alert_info("Reading " %&% sumstats_file %&% " ...")
-chunk_size <- 1000000 # Read every 1,000,000 lines
-con <- file(sumstats_file, "r")
-
-df_sumstats <- data.table::fread(text = readLines(con, n = chunk_size))
-while (TRUE) {
-  chunk <- readLines(con, n = chunk_size)
-
-  # When the number of lines left is zero, break
-  if (length(chunk) == 0) break 
-
-  c <- data.table::fread(text = chunk)
-  if (!identical(names(c), names(df_sumstats))) {
-    colnames(c) <- names(df_sumstats)
-  }
-  df_sumstats <- rbindlist(list(df_sumstats, c))
-}
-close(con)
+df_sumstats <- fancy_process(
+  process = read_sumstats_file,
+  message = "Reading " %&% sumstats_file,
+  # Function parameters
+  sumstats_path = args[1],
+  chunk_size = 1000000
+)
 
 # Change the table format to follow the template
 # from https://r-graph-gallery.com/101_Manhattan_plot.html

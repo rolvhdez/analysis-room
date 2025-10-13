@@ -27,6 +27,32 @@ fancy_process <- function(
   }
   wrapper()
 }
+read_sumstats_file <- function(sumstats_path, chunk_size = 1000000) {
+  #' Read the summary statistics file
+  #' 
+  #' By default read in batches of 1 million lines
+  #' to reduce memory usage.
+  #'
+  #' @param sumstats_path
+  #' @param chunk_size
+  #'
+  con <- file(sumstats_path, "r")
+  df <- data.table::fread(text = readLines(con, n = chunk_size))
+  while (TRUE) {
+    chunk <- readLines(con, n = chunk_size)
+
+    # When the number of lines left is zero, break
+    if (length(chunk) == 0) break
+
+    c <- data.table::fread(text = chunk)
+    if (!identical(names(c), names(df))) {
+      colnames(c) <- names(df)
+    }
+    df <- data.table::rbindlist(list(df, c))
+  }
+  close(con)
+  df # Return
+}
 query_biomart <- function(snps) {
   #' Obtain Ensemble ID's through BiomaRt
   #'

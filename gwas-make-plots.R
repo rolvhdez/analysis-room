@@ -67,39 +67,30 @@ source("utils/00_utils.R")
 # Plot theme
 theme_set(
   theme_bw() +
-    theme( 
+    theme(
       panel.border = element_blank(),
-      plot.title = element_text(face = "bold", size=16),
-      plot.subtitle = element_text(color="#3d3d3d", size=12),
-      plot.caption = element_text(color="#3d3d3d", size=10),
-      strip.text = element_text(color="#3d3d3d", face="bold", size=12),
-      strip.background = element_rect(color="#3d3d3d", fill="white", linewidth=1),
+      plot.title = element_text(face = "bold", size = 16),
+      plot.subtitle = element_text(color = "#3d3d3d", size = 12),
+      plot.caption = element_text(color = "#3d3d3d", size = 10),
+      strip.text = element_text(color = "#3d3d3d", face = "bold", size = 12),
+      strip.background = element_rect(
+        color = "#3d3d3d", fill = "white", linewidth = 1
+      ),
     )
 )
 
 # Read the data to be analyzed
-cli_alert_info("Reading " %&% sumstats_file %&% " ...")
-chunk_size <- 1000000 # Read every 1,000,000 lines
-con <- file(sumstats_file, "r")
-
-df_sumstats <- data.table::fread(text = readLines(con, n = chunk_size))
-while (TRUE) {
-  chunk <- readLines(con, n = chunk_size)
-
-  # When the number of lines left is zero, break
-  if (length(chunk) == 0) break 
-
-  c <- data.table::fread(text = chunk)
-  if (!identical(names(c), names(df_sumstats))) {
-    colnames(c) <- names(df_sumstats)
-  }
-  df_sumstats <- rbindlist(list(df_sumstats, c))
-}
-close(con)
+df_sumstats <- fancy_process(
+  process = read_sumstats_file,
+  message = "Reading " %&% sumstats_file,
+  # Function parameters
+  sumstats_path = args[1],
+  chunk_size = 1000000
+)
 
 # Change the table format to follow the template
 # from https://r-graph-gallery.com/101_Manhattan_plot.html
-if (model == "snipar"){
+if (model == "snipar") {
   fgwas_results <- df_sumstats %>% 
     dplyr::filter(!is.na(direct_log10_P)) %>% 
     dplyr::select(
