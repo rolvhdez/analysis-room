@@ -9,6 +9,9 @@
 # Usage:
 # Rscript map-genes.R sumstats_file output_dir/
 
+suppressPackageStartupMessages(library(cli))
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(data.table))
 suppressPackageStartupMessages(library(rentrez))
 suppressPackageStartupMessages(library(biomaRt))
 
@@ -27,7 +30,7 @@ df_sumstats <- fancy_process(
   process = read_sumstats_file,
   message = "Reading " %&% sumstats_file,
   # Function parameters
-  sumstats_path = args[1],
+  sumstats_path = sumstats_file,
   chunk_size = 1000000
 )
 
@@ -44,8 +47,8 @@ if (model == "snipar") {
     ) %>% 
     mutate(P = 10^(-P))
 } else if (model == "regenie") {
-  fgwas_results <- df_sumstats %>% 
-    dplyr::filter(!is.na(LOG10P)) %>% 
+  fgwas_results <- df_sumstats %>%
+    dplyr::filter(!is.na(LOG10P)) %>%
     dplyr::select(
       "CHR" = CHROM,
       "BP" = GENPOS,
