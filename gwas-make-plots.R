@@ -83,25 +83,24 @@ cli_alert_info("Reading " %&% sumstats_file %&% " ...")
 chunk_size <- 1000000 # Read every 1,000,000 lines
 con <- file(sumstats_file, "r")
 
-df_sumstats = data.table::fread(text = readLines(con, n = chunk_size))
+df_sumstats <- data.table::fread(text = readLines(con, n = chunk_size))
 while (TRUE) {
   chunk <- readLines(con, n = chunk_size)
-  if (length(chunk) == 0) break 
-  c <- data.table::fread(text = chunk)
 
+  # When the number of lines left is zero, break
+  if (length(chunk) == 0) break 
+
+  c <- data.table::fread(text = chunk)
   if (!identical(names(c), names(df_sumstats))) {
     colnames(c) <- names(df_sumstats)
   }
   df_sumstats <- rbindlist(list(df_sumstats, c))
-  message("Proccessed " %&% scales::comma(nrow(df_sumstats)) %&% " so far...")
 }
 close(con)
-print(head(df_sumstats))
-quit()
 
 # Change the table format to follow the template
 # from https://r-graph-gallery.com/101_Manhattan_plot.html
-if (model == 'snipar'){
+if (model == "snipar"){
   fgwas_results <- df_sumstats %>% 
     dplyr::filter(!is.na(direct_log10_P)) %>% 
     dplyr::select(
@@ -111,16 +110,15 @@ if (model == 'snipar'){
       "P" = direct_log10_P
     ) %>% 
     mutate(P = 10^(-P))
-} else if (model == 'regenie') {
+} else if (model == "regenie") {
   fgwas_results <- df_sumstats %>% 
     dplyr::filter(!is.na(LOG10P)) %>% 
     dplyr::select(
       "CHR" = CHROM,
       "BP" = GENPOS,
       "SNP" = ID,
-      "P" = LOG10P
-    ) %>% 
-    mutate(P = 10^(-P))
+      "P" = P
+    )
 }
 fgwas_results$SNP <- gsub("GSA-", "", fgwas_results$SNP)
 fgwas_results$CHR <- as.integer(fgwas_results$CHR)
@@ -138,5 +136,5 @@ source("utils/03_manhattan_plot.R")
 
 # Make effect sizes plot (only available for `snipar`)
 if (model == 'snipar'){
-  source("utils/04_effect_sizes.R")
+ source("utils/04_effect_sizes.R")
 }
