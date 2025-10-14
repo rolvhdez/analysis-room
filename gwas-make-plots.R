@@ -116,7 +116,6 @@ k_snps <- unique(fgwas_results$SNP)
 cli_alert_info(scales::comma(length(k_snps)) %&% " SNPs found in `" %&% sumstats_file %&% "`.")
 
 bonferroni <- 0.05 / nrow(fgwas_results) # Bonferroni adjusted P-Value
-significance_threshold <- -log10(bonferroni)
 cli_alert_info("Bonferroni adjusted P-value: " %&% scales::scientific(bonferroni))
 
 # Make the QQplot
