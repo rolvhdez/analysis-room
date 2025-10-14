@@ -84,7 +84,7 @@ df_sumstats <- fancy_process(
   process = read_sumstats_file,
   message = "Reading " %&% sumstats_file,
   # Function parameters
-  sumstats_path = args[1],
+  sumstats_path = sumstats_file,
   chunk_size = 1000000
 )
 
@@ -92,17 +92,17 @@ df_sumstats <- fancy_process(
 # from https://r-graph-gallery.com/101_Manhattan_plot.html
 if (model == "snipar") {
   fgwas_results <- df_sumstats %>% 
-    dplyr::filter(!is.na(direct_log10_P)) %>% 
+    dplyr::filter(!is.na(direct_log10_P)) %>%
     dplyr::select(
       "CHR" = chromosome,
       "BP" = pos,
       "SNP" = SNP,
       "P" = direct_log10_P
-    ) %>% 
+    ) %>%
     mutate(P = 10^(-P))
 } else if (model == "regenie") {
-  fgwas_results <- df_sumstats %>% 
-    dplyr::filter(!is.na(LOG10P)) %>% 
+  fgwas_results <- df_sumstats %>%
+    dplyr::filter(!is.na(LOG10P)) %>%
     dplyr::select(
       "CHR" = CHROM,
       "BP" = GENPOS,
@@ -115,18 +115,9 @@ fgwas_results$CHR <- as.integer(fgwas_results$CHR)
 k_snps <- unique(fgwas_results$SNP)
 cli_alert_info(scales::comma(length(k_snps)) %&% " SNPs found in `" %&% sumstats_file %&% "`.")
 
-# --- SUBSET ---
-# To avoid bloating with non-significant SNPs
-# we will create a new data frame with a sampling
-# of 5% for all SNPs p-value > 1e-5
-#
-# This reduces plotting a lot more
-non_significant <- fgwas_results %>%
-  filter(-log10(P) > 1e-5) %>%
-  sample_frac(0.05) # Keep only 5%
-significant <- fgwas_results %>%
-  filter(-log10(P) <= 1e-5)
-fgwas_results <- dplyr::bind_rows(significant, non_significant)
+bonferroni <- 0.05 / nrow(fgwas_results) # Bonferroni adjusted P-Value
+significance_threshold <- -log10(bonferroni)
+cli_alert_info("Bonferroni adjusted P-value: " %&% scales::scientific(bonferroni))
 
 # Make the QQplot
 source("utils/02_qq_plot.R")
