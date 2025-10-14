@@ -22,11 +22,11 @@ COPY .Rprofile .Rprofile
 COPY renv/activate.R renv/activate.R
 COPY renv/settings.json renv/settings.json
 
+# Install renv and restore the project library
+RUN Rscript -e 'install.packages(c("renv", "BiocManager"))'
+RUN Rscript -e 'renv::restore(lockfile = "renv.lock", repos = NULL)'
+
 # Copy the rest of the pipeline code
 COPY utils/ utils/
 COPY gwas-make-plots.R gwas-make-plots.R
 COPY map-genes.R map-genes.R
-
-# Install renv and restore the project library
-RUN Rscript -e 'install.packages(c("renv", "BiocManager"))'
-RUN Rscript -e 'renv::restore(lockfile = "renv.lock", repos = NULL)'
