@@ -1,11 +1,14 @@
 # Input values
 bp_window <- 10e4
 
+# Subset so R can process
+subset_results <- fgwas_results %>% filter(P < 1e-1)
+
 # Select SNPs by association and distance (will have repeated rows) ----
-snps_of_interest <- fgwas_results %>%
+snps_of_interest <- subset_results %>%
   filter(P <= 1e-6) %>%
   dplyr::select(CHR, BP) %>%
-  inner_join(fgwas_results, ., by = c("CHR"), relationship = "many-to-many") %>%
+  inner_join(subset_results, ., by = c("CHR"), relationship = "many-to-many") %>%
   mutate(POS_DIST = abs(BP.x - BP.y)) %>%
   dplyr::select(-BP.y) %>%
   rename(BP = BP.x)
@@ -29,12 +32,12 @@ snps_suggested <- snps_of_interest %>%
   unique()
 
 # --- DATA FRAME: MANHATTAN PLOT
-df_manhattan <- fgwas_results %>%
+df_manhattan <- subset_results %>%
   group_by(CHR) %>%
   summarise(CHR_LEN = max(BP)) %>%
   mutate(COORD = cumsum(as.numeric(CHR_LEN)) - CHR_LEN) %>%
   dplyr::select(-CHR_LEN) %>%
-  right_join(fgwas_results, ., by = "CHR") %>%
+  right_join(subset_results, ., by = "CHR") %>%
   arrange(CHR, BP) %>%
   mutate(BP_CUM = COORD + BP)
 
@@ -54,20 +57,11 @@ manhattan_plot <- df_manhattan %>%
   ggplot(aes(x = BP_CUM, y = -log10(P))) +
   geom_point(
     aes(color = as.factor(CHR)),
-    size = 1.3, shape = 1, alpha = 0.25
-  ) +
-  # Highlight SNPs of interest
-  geom_point(
-    data = subset(df_manhattan, is_significant == "yes"),
-    color = "green", size = 1.3, shape = 1
-  ) +
-  geom_point(
-    data = subset(df_manhattan, is_suggested == "yes"),
-    color = "orange", size = 1.3, shape = 1
+    size = 1.3, shape = 1
   ) +
   # Significance line
   geom_hline( # High
-    yintercept = significance_threshold,
+    yintercept = -log10(bonferroni),
     color = "red",
     linetype = "dashed"
   ) +
