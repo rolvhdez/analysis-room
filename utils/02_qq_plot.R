@@ -22,32 +22,31 @@ cli_alert_info("Lambda genetic inflation factor: " %&% round(lambda_value, 4))
 
 # Make the plot
 df_qqvalues <- qq_results$qqvalues
+
+qq_caption <- paste0(
+  "No. variants: ", scales::comma(length(k_snps)), "\n",
+  "Lambda inflation factor: ", round(lambda_value, 4)
+)
+
 qq_plot <- df_qqvalues %>%
+  filter(observed != Inf) %>%
   ggplot(aes(x = theoretical, y = observed)) +
-  geom_point(size = 2.33, alpha = 0.85, shape = 1) +
-  geom_point(
-    data = subset(df_qqvalues, observed >= -log10(bonferroni)),
-    size = 2.33, alpha = 0.85, shape = 1, color = "red"
+  geom_point(size = 1.33, shape = 1) +
+  geom_smooth(method = "lm",
+    linetype = "dashed", color = "red"
   ) +
-  geom_smooth(
-    method = "lm", linetype = "dashed", color = "blue",
-    alpha = 0.85, linewidth = 1, se = FALSE
-  ) +
+  xlab(expression(Theoretical ~ -log[10](italic(p)))) +
+  ylab(expression(Observed ~ -log[10](italic(p)))) +
   labs(
-    x = "Theoretical -log10(P)",
-    y = "Observeded -log10(P)",
-    caption = "No. variants: " %&% scales::comma(length(k_snps)) %&% "\nLambda inflation: " %&% round(lambda_value, 4)
-  ) +
-  theme(
-    plot.caption = element_text(hjust = 0),
-    plot.caption.position = "plot",
+    title = phenotype,
+    caption = qq_caption
   )
 
 # Export
 png(
   output_dir %&% "qqplot.png",
-  width = 1920 * 2, height = 1920,
-  res = 300, units = "px"
+  width = 1080, height = 1080 * 0.75,
+  res = 150, units = "px"
 )
 suppressMessages(print(qq_plot))
 dev.off()

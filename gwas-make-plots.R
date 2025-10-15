@@ -33,12 +33,18 @@ suppressPackageStartupMessages(library(dplyr))
 suppressPackageStartupMessages(library(tidyr))
 suppressPackageStartupMessages(library(data.table))
 suppressPackageStartupMessages(library(R.utils))
+suppressPackageStartupMessages(library(scattermore))
+
+# Load personalized functions
+"%&%" <- function(a, b) paste0(a, b)
+source("utils/00_utils.R")
 
 # Process arguments
 args <- commandArgs(trailingOnly = TRUE)
 sumstats_file <- args[1]
 output_dir <- args[2]
 model <- if (length(args) < 3) "snipar" else args[3] # Default: snipar (v0.0.22)
+phenotype <- if (length(args) < 4) "" else args[4] # Default: empty
 
 # Check that file and output directory exist
 if (!file.exists(sumstats_file)) {
@@ -48,10 +54,7 @@ if (!file.exists(sumstats_file)) {
   ))
 }
 if (!dir.exists(output_dir)) {
-  cli_abort(c(
-    "{output_dir} does not exist",
-    "x" = "You've supplied a directory that does not exist."
-  ))
+  output_dir <- output_dir %&% "."
 }
 if (!model %in% c("snipar", "regenie")) {
   cli_abort(c(
@@ -60,22 +63,22 @@ if (!model %in% c("snipar", "regenie")) {
   ))
 }
 
-# Load personalized functions
-"%&%" <- function(a, b) paste0(a, b)
-source("utils/00_utils.R")
-
 # Plot theme
 theme_set(
   theme_bw() +
     theme(
       panel.border = element_blank(),
-      plot.title = element_text(face = "bold", size = 16),
-      plot.subtitle = element_text(color = "#3d3d3d", size = 12),
-      plot.caption = element_text(color = "#3d3d3d", size = 10),
+      axis.line.x = element_line(color = "black",
+                                 linewidth = 0.5),
+      axis.line.y = element_line(color = "black",
+                                 linewidth = 0.5),
+      plot.title = element_text(face = "bold", size = 12, hjust = 0.5),
+      plot.subtitle = element_text(color = "#3d3d3d", size = 8),
+      plot.caption = element_text(color = "#3d3d3d", size = 8),
       strip.text = element_text(color = "#3d3d3d", face = "bold", size = 12),
       strip.background = element_rect(
         color = "#3d3d3d", fill = "white", linewidth = 1
-      ),
+      )
     )
 )
 
@@ -110,7 +113,6 @@ if (model == "snipar") {
       "P" = P
     )
 }
-fgwas_results$SNP <- gsub("GSA-", "", fgwas_results$SNP)
 fgwas_results$CHR <- as.integer(fgwas_results$CHR)
 k_snps <- unique(fgwas_results$SNP)
 cli_alert_info(scales::comma(length(k_snps)) %&% " SNPs found in `" %&% sumstats_file %&% "`.")
