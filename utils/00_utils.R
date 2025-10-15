@@ -53,25 +53,6 @@ read_sumstats_file <- function(sumstats_path, chunk_size = 1000000) {
   close(con)
   df # Return
 }
-query_biomart <- function(chr, pos) {
-  #' Obtain Ensemble ID's through BiomaRt
-  #'
-  #' @param snps List with rsid's to query
-  human_variation <- biomaRt::useMart(biomart = "ENSEMBL_MART_SNP",
-                                      dataset = "hsapiens_snp")
-  query_mart <- biomaRt::getBM(
-    attributes = c("refsnp_id", "chr_name", "chrom_start", "associated_gene"),
-    filters = c("chr_name", "start", "end"),
-    values = list(chr, pos, pos),
-    mart = human_variation
-  )
-  colnames(query_mart)[1] <- "SNP"
-  ensemble_ids <- query_mart %>%
-    filter(if_all(everything(), ~ .x != "")) %>%
-    rename(GENE_ID = ensembl_gene_stable_id)
-
-  ensemble_ids
-}
 ncbi_query <- function(gene_list){
   #' Get an NCBI query from Ensembl ID's using Entrez.
   #' Returns: Gene name, description, and summary
@@ -128,5 +109,5 @@ ncbi_query <- function(gene_list){
     )
   })
   ncbi_annotations <- dplyr::bind_rows(ncbi_annotations)
-  ncbi_annotations
+  return(ncbi_annotations)
 }

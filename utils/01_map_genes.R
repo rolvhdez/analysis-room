@@ -1,12 +1,40 @@
 # You can find the functions within the wrapper functions
 # in utils/00_utils.R
-ensemble_ids <- fancy_process(
-  process = query_biomart,
-  message = "Querying BiomaRt for gene mappings",
-  # Function arguments
-  chr = fgwas_results %>% filter(P <= 1e-5) %>% pull(CHR),
-  pos = fgwas_results %>% filter(P <= 1e-5) %>% pull(BP)
+
+chr <- fgwas_results %>% filter(P <= bonferroni) %>% pull(CHR)
+pos <- fgwas_results %>% filter(P <= bonferroni) %>% pull(BP)
+regions <- paste0(chr, ":", pos, ":", pos)
+
+# --- BIOMART QUERY ---
+k_query <- nrow(fgwas_results %>% filter(P <= bonferroni))
+biomart_message <- paste0(
+  "Querying ", scales::comma(k_query),
+  " significant SNPs ",
+  "in the BiomaRt database."
 )
+human_variation <- fancy_process(
+  process = biomaRt::useMart,
+  message = "Connecting to BiomaRt",
+  ###
+  biomart = "ENSEMBL_MART_SNP",
+  dataset = "hsapiens_snp",
+  host = "https://www.ensembl.org"
+)
+query_mart <- fancy_process(
+  process = biomaRt::getBM,
+  message = biomart_message,
+  ###
+  attributes = c("refsnp_id", "chr_name", "chrom_start", "associated_gene"),
+  filters = "chromosomal_region",
+  values = regions,
+  mart = human_variation
+)
+colnames(query_mart)[1] <- "SNP"
+ensemble_ids <- query_mart %>%
+  filter(if_all(everything(), ~ .x != "")) %>%
+  rename(GENE_ID = associated_gene)
+
+# --- NCBI ENTREZ QUERY ---
 ncbi_gene_mappings <- fancy_process(
   process = ncbi_query,
   message = "Querying NCBI (Entrez) for extra information",
@@ -27,15 +55,16 @@ full_gene_map <- fgwas_results %>%
 
 # Export to text file (gzipped)
 if (nrow(full_gene_map) > 0) {
-  gz <- gzfile("gene_mappings.sumstats.gz", "w")
+  out_file <- output_dir %&% "gene_mappings.txt.gz"
+  gz <- gzfile(out_file, "w")
   write.table(
     full_gene_map,
-    file = output_dir %&% gz,
+    file = gz,
     sep = " ",
     row.names = FALSE
   )
   close(gz)
-  cli_alert_success("Exported `" %&% output_dir %&% "gene_mappings.sumstats.gz`")
+  cli_alert_success("Exported `" %&% out_file %&% "`")
 } else {
-  cli_alert_warning('Queries returned no results. No `.csv` will be produced.')
+  cli_alert_warning('Queries returned no results. No file will be produced.')
 }

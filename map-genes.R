@@ -15,15 +15,32 @@ suppressPackageStartupMessages(library(data.table))
 suppressPackageStartupMessages(library(rentrez))
 suppressPackageStartupMessages(library(biomaRt))
 
+# Load personalized functions
+"%&%" <- function(a, b) paste0(a, b)
+source("utils/00_utils.R")
+
 # Process arguments
 args <- commandArgs(trailingOnly = TRUE)
 sumstats_file <- args[1]
 output_dir <- args[2]
 model <- if (length(args) < 3) "snipar" else args[3] # Default: snipar (v0.0.22)
 
-# Load personalized functions
-"%&%" <- function(a, b) paste0(a, b)
-source("utils/00_utils.R")
+# Check that file and output directory exist
+if (!file.exists(sumstats_file)) {
+  cli_abort(c(
+    "{sumstats_file} does not exist",
+    "x" = "You've supplied a file that does not exist."
+  ))
+}
+if (!dir.exists(output_dir)) {
+  output_dir <- output_dir %&% "."
+}
+if (!model %in% c("snipar", "regenie")) {
+  cli_abort(c(
+    "{model} does not exist",
+    "x" = "You've supplied an unsupported type of model. Options are: snipar (default), regenie"
+  ))
+}
 
 # Read the data to be analyzed
 df_sumstats <- fancy_process(
@@ -56,10 +73,12 @@ if (model == "snipar") {
       "P" = P
     )
 }
-fgwas_results$SNP <- gsub("GSA-", "", fgwas_results$SNP)
 fgwas_results$CHR <- as.integer(fgwas_results$CHR)
 k_snps <- unique(fgwas_results$SNP)
 cli_alert_info(scales::comma(length(k_snps)) %&% " SNPs found in `" %&% sumstats_file %&% "`.")
+
+bonferroni <- 0.05 / nrow(fgwas_results) # Bonferroni adjusted P-Value
+cli_alert_info("Bonferroni adjusted P-value: " %&% scales::scientific(bonferroni))
 
 # --- MAPPING GENES ---
 source("utils/01_map_genes.R")
