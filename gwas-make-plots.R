@@ -45,6 +45,7 @@ sumstats_file <- args[1]
 output_dir <- args[2]
 model <- if (length(args) < 3) "snipar" else args[3] # Default: snipar (v0.0.22)
 phenotype <- if (length(args) < 4) "" else args[4] # Default: empty
+annotations <- if (length(args) < 5) NULL else args[5] # Default: empty
 
 # Check that file and output directory exist
 if (!file.exists(sumstats_file)) {
@@ -91,6 +92,7 @@ df_sumstats <- fancy_process(
   chunk_size = 1000000
 )
 
+
 # Change the table format to follow the template
 # from https://r-graph-gallery.com/101_Manhattan_plot.html
 if (model == "snipar") {
@@ -120,8 +122,19 @@ cli_alert_info(scales::comma(length(k_snps)) %&% " SNPs found in `" %&% sumstats
 bonferroni <- 0.05 / nrow(fgwas_results) # Bonferroni adjusted P-Value
 cli_alert_info("Bonferroni adjusted P-value: " %&% scales::scientific(bonferroni))
 
+# Read the provided annotations table
+if (!is.null(annotations)) {
+  df_annotations <- fancy_process(
+    process = data.table::fread,
+    message = "Reading " %&% annotations,
+    ###
+    file = annotations,
+    sep = " "
+  )
+}
+
 # Make the QQplot
-source("utils/02_qq_plot.R")
+#source("utils/02_qq_plot.R")
 
 # Make the Manhattan plot
 source("utils/03_manhattan_plot.R")
