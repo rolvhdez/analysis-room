@@ -30,3 +30,4 @@ RUN Rscript -e 'renv::restore(lockfile = "renv.lock", repos = NULL)'
 COPY utils/ utils/
 COPY gwas-make-plots.R gwas-make-plots.R
 COPY map-genes.R map-genes.R
+COPY ibd-plots.R ibd-plots.R
