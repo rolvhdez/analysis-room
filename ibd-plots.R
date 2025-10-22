@@ -100,5 +100,4 @@ check_out(output_dir)
 
 # Same result as Map but with slightly different syntax
 plots <- create_plots(ibd)
-print(names(plots))
 mapply(export_plot, plots, output_dir %&% names(plots))
