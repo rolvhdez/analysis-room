@@ -1,8 +1,8 @@
-# Author: Roberto Olvera Hernandez (Made with the help of 'Deepseek')
-# Date: 2025-09-11
-
-# Start from a specific R version base image
+# Author: Roberto Olvera Hernandez
+# Date: 2025-10-14
 FROM rocker/verse:4.3.1
+
+WORKDIR /tmp/
 
 # Install system dependencies (e.g., for 'sf', 'curl', 'xml2' packages)
 RUN apt-get update && \
@@ -22,14 +22,12 @@ COPY .Rprofile .Rprofile
 COPY renv/activate.R renv/activate.R
 COPY renv/settings.json renv/settings.json
 
-# Copy the rest of the pipeline code
-COPY utils/ utils/
-COPY ./gwas-make-plots.R gwas-make-plots.R
-
 # Install renv and restore the project library
 RUN Rscript -e 'install.packages(c("renv", "BiocManager"))'
-RUN Rscript -e 'BiocManager::install("rentrez")'
-RUN Rscript -e 'BiocManager::install("biomaRt")'
 RUN Rscript -e 'renv::restore(lockfile = "renv.lock", repos = NULL)'
 
-CMD ["/bin/bash"]
+# Copy the rest of the pipeline code
+COPY utils/ utils/
+COPY gwas-make-plots.R gwas-make-plots.R
+COPY map-genes.R map-genes.R
+COPY ibd-plots.R ibd-plots.R

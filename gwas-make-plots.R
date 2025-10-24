@@ -30,15 +30,20 @@ suppressPackageStartupMessages(library(ggrepel))
 suppressPackageStartupMessages(library(ggplot2))
 suppressPackageStartupMessages(library(dplyr))
 suppressPackageStartupMessages(library(tidyr))
-suppressPackageStartupMessages(library(rentrez))
-suppressPackageStartupMessages(library(biomaRt))
 suppressPackageStartupMessages(library(data.table))
+suppressPackageStartupMessages(library(R.utils))
+
+# Load personalized functions
+"%&%" <- function(a, b) paste0(a, b)
+source("utils/00_utils.R")
 
 # Process arguments
 args <- commandArgs(trailingOnly = TRUE)
 sumstats_file <- args[1]
 output_dir <- args[2]
 model <- if (length(args) < 3) "snipar" else args[3] # Default: snipar (v0.0.22)
+phenotype <- if (length(args) < 4) "" else args[4] # Default: empty
+annotations <- if (length(args) < 5) NULL else args[5] # Default: empty
 
 # Check that file and output directory exist
 if (!file.exists(sumstats_file)) {
@@ -48,10 +53,7 @@ if (!file.exists(sumstats_file)) {
   ))
 }
 if (!dir.exists(output_dir)) {
-  cli_abort(c(
-    "{output_dir} does not exist",
-    "x" = "You've supplied a directory that does not exist."
-  ))
+  output_dir <- output_dir %&% "."
 }
 if (!model %in% c("snipar", "regenie")) {
   cli_abort(c(
@@ -60,30 +62,39 @@ if (!model %in% c("snipar", "regenie")) {
   ))
 }
 
-# Load personalized functions
-"%&%" <- function(a, b) paste0(a, b)
-source("utils/00_utils.R")
-
 # Plot theme
 theme_set(
   theme_bw() +
     theme(
       panel.border = element_blank(),
-      plot.title = element_text(face = "bold", size=16),
-      plot.subtitle = element_text(color="#3d3d3d", size=12),
-      plot.caption = element_text(color="#3d3d3d", size=10),
-      strip.text = element_text(color="#3d3d3d", face="bold", size=12),
-      strip.background = element_rect(color="#3d3d3d", fill="white", linewidth=1),
+      axis.line.x = element_line(color = "black",
+                                 linewidth = 0.5),
+      axis.line.y = element_line(color = "black",
+                                 linewidth = 0.5),
+      plot.title = element_text(face = "bold", size = 12, hjust = 0.5),
+      plot.subtitle = element_text(color = "#3d3d3d", size = 8),
+      plot.caption = element_text(color = "#3d3d3d", size = 8),
+      strip.text = element_text(color = "#3d3d3d", face = "bold", size = 12),
+      strip.background = element_rect(
+        color = "#3d3d3d", fill = "white", linewidth = 1
+      )
     )
 )
 
 # Read the data to be analyzed
-df_sumstats <- data.table::fread(sumstats_file, header = TRUE)
+df_sumstats <- fancy_process(
+  process = read_sumstats_file,
+  message = "Reading " %&% sumstats_file,
+  # Function parameters
+  sumstats_path = sumstats_file,
+  chunk_size = 1000000
+)
+
 
 # Change the table format to follow the template
 # from https://r-graph-gallery.com/101_Manhattan_plot.html
-if (model == 'snipar'){
-  fgwas_results <- df_sumstats %>%
+if (model == "snipar") {
+  fgwas_results <- df_sumstats %>% 
     dplyr::filter(!is.na(direct_log10_P)) %>%
     dplyr::select(
       "CHR" = chromosome,
@@ -92,24 +103,33 @@ if (model == 'snipar'){
       "P" = direct_log10_P
     ) %>%
     mutate(P = 10^(-P))
-} else if (model == 'regenie') {
+} else if (model == "regenie") {
   fgwas_results <- df_sumstats %>%
     dplyr::filter(!is.na(LOG10P)) %>%
     dplyr::select(
       "CHR" = CHROM,
       "BP" = GENPOS,
       "SNP" = ID,
-      "P" = LOG10P
-    ) %>%
-    mutate(P = 10^(-P))
+      "P" = P
+    )
 }
-fgwas_results$SNP <- gsub("GSA-", "", fgwas_results$SNP)
 fgwas_results$CHR <- as.integer(fgwas_results$CHR)
 k_snps <- unique(fgwas_results$SNP)
-cli_alert_info(scales::comma(length(k_snps)) %&% " SNPs found in `" %&% sumstats_file %&% '`.')
+cli_alert_info(scales::comma(length(k_snps)) %&% " SNPs found in `" %&% sumstats_file %&% "`.")
 
-# Make the gene mappings
-source("utils/01_map_genes.R")
+bonferroni <- 0.05 / nrow(fgwas_results) # Bonferroni adjusted P-Value
+cli_alert_info("Bonferroni adjusted P-value: " %&% scales::scientific(bonferroni))
+
+# Read the provided annotations table
+if (!is.null(annotations)) {
+  df_annotations <- fancy_process(
+    process = data.table::fread,
+    message = "Reading " %&% annotations,
+    ###
+    file = annotations,
+    sep = " "
+  )
+}
 
 # Make the QQplot
 source("utils/02_qq_plot.R")
@@ -118,6 +138,4 @@ source("utils/02_qq_plot.R")
 source("utils/03_manhattan_plot.R")
 
 # Make effect sizes plot (only available for `snipar`)
-if (model == "snipar"){
-  source("utils/04_effect_sizes.R")
-}
+if (model == "snipar") source("utils/04_effect_sizes.R")
