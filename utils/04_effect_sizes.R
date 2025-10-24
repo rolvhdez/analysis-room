@@ -1,7 +1,7 @@
 df_direct_plot <- df_sumstats %>%
-  mutate(label = ifelse(direct_log10_P > -log10(5e-8), "yes", "no")) %>%
+  mutate(label = ifelse(direct_log10_P > -log10(bonferroni), "yes", "no")) %>%
   dplyr::select(
-    SNP, direct_Beta, direct_N, direct_log10_P, freq
+    SNP, direct_Beta, direct_N, direct_log10_P, freq, label
   )
 
 if (!is.null(annotations)) {
