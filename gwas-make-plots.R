@@ -33,7 +33,6 @@ suppressPackageStartupMessages(library(dplyr))
 suppressPackageStartupMessages(library(tidyr))
 suppressPackageStartupMessages(library(data.table))
 suppressPackageStartupMessages(library(R.utils))
-suppressPackageStartupMessages(library(scattermore))
 
 # Load personalized functions
 "%&%" <- function(a, b) paste0(a, b)
@@ -134,7 +133,7 @@ if (!is.null(annotations)) {
 }
 
 # Make the QQplot
-#source("utils/02_qq_plot.R")
+source("utils/02_qq_plot.R")
 
 # Make the Manhattan plot
 source("utils/03_manhattan_plot.R")
