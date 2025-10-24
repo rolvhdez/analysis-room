@@ -17,9 +17,8 @@
 #
 # `<name of file>.<estimator>.txt.gz`
 #
-# where `estimator` for the type of model that
-# was used in snipar to generate those summary statistics,
-# and should have the `.txt.gz` as the default extension.
+# where `estimator` for the type of model that was used in snipar to generate those
+# summary statistics, and should have the `.txt.gz` as the default extension.
 #
 # Note: For aesthetic reasons, will only show up to the top 50 gene annotations
 # among the most significantly-associated loci. But will save a text file with
