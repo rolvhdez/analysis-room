@@ -17,8 +17,7 @@ make_manhattan <- function(df, axis, title, bonferroni) {
   k <- length(unique(df$SNP))
   caption <- paste0(
     "No. variants: ", scales::comma(k), "\n",
-    "Bonferroni adjusted p-value < " %&% scales::scientific(bonferroni,
-                                                            digits = 4)
+    "Bonferroni adjusted p-value < " %&% scales::scientific(bonferroni, digits = 4) %&% " (red line)"
   )
   m <- df %>%
     ggplot(aes(x = BP_CUM, y = -log10(P))) +
@@ -32,11 +31,11 @@ make_manhattan <- function(df, axis, title, bonferroni) {
       color = "red",
       linetype = "dashed"
     ) +
-    geom_hline( # Moderate
-      yintercept = -log10(1e-6),
-      color = "blue",
-      linetype = "dashed"
-    ) +
+#    geom_hline( # Moderate
+#      yintercept = -log10(1e-6),
+#      color = "blue",
+#      linetype = "dashed"
+#    ) +
     # Axis labels
     xlab("Chromosome") +
     ylab(expression(-log[10](italic(p)))) +

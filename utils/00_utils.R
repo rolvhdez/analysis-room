@@ -68,27 +68,23 @@ reformat_sumstats <- function(sumstats, model) {
   models <- list(
     snipar = list(
       filter_col = "direct_log10_P",
-      select_cols = c("chromosome", "pos", "SNP", "direct_log10_P"),
-      new_names = c("CHR", "BP", "SNP", "P")
+      select_cols = c("chromosome", "pos", "SNP", "direct_log10_P", "direct_Beta", "freq", "direct_N"),
+      new_names = c("CHR", "BP", "SNP", "P", "BETA", "MAF", "N")
     ),
     regenie = list(
-      filter_col = "LOG10P", 
-      select_cols = c("CHROM", "GENPOS", "ID", "P"),
-      new_names = c("CHR", "BP", "SNP", "P")
+      filter_col = "LOG10P",
+      select_cols = c("CHROM", "GENPOS", "ID", "P", "BETA", "N"),
+      new_names = c("CHR", "BP", "SNP", "P", "BETA", "N")
     )
   )
-  
   if (!model %in% names(models)) {
     stop("Supported models are: ", paste(names(models), collapse = ", "))
   }
-  
   spec <- models[[model]]
-  
   x <- sumstats %>%
     dplyr::filter(!is.na(.data[[spec$filter_col]])) %>%
     dplyr::select(dplyr::all_of(spec$select_cols)) %>%
     stats::setNames(spec$new_names)
-  
   # Apply model-specific transformations
   if (model == "snipar") {
     x <- x %>% dplyr::mutate(P = 10^(-P))
