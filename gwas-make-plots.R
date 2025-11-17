@@ -1,29 +1,46 @@
 # Author: Roberto Olvera Hernandez
-# Date: 2025-09-11
+# Date: 2025-11-07
 #
 # Description:
-# This script consolidates summary statistics files from
-# snipar (https://github.com/AlexTISYoung/snipar), generating:
-# - Manhattan plots for a single trait
-# - QQ-Plots (with lambda inflation factor)
-# - Genetic annotations using biomaRt and NCBI databases
-# - Effect sizes plots for multiple traits
-# - Read log files and return information in a table-like file
+#
+# Note:
+# Make sure that you're using your inputs IN ORDER.
 #
 # Usage:
-# Rscript gwas-make-plots.R sumstats output_dir
+# R does not support (at least not easy) flagged
+# arguments for parsing. So, this is the equivalent
+# of a `-h` of the script:
 #
-# Note: Required file name should have the next structure:
+# Supported summary statistics formats:
+# - snipar (v0.0.22) 
+# - REGENIE
 #
-# `<name of file>.<estimator>.txt.gz`
+# --sumstats:path
+#       Path to the summary statistics (.gz)
 #
-# where `estimator` for the type of model that was used in snipar to generate those
-# summary statistics, and should have the `.txt.gz` as the default extension.
+# --output:path
+#       Output directory. If the directory does not exist,
+#       the script will make a "prefix" using the name of the directory
+#       you're trying to submit.
+#       (Example) For `$HOME/path/001` the outputs will be `$HOME/path/001.qqplot.png`
 #
-# Note: For aesthetic reasons, will only show up to the top 50 gene annotations
-# among the most significantly-associated loci. But will save a text file with
-# all gene annotations and their corresponding GWAS variant
-# (i.e. top variant at the locus)
+# --model:str
+#       Format of the summary statistics.
+#       Supported: "snipar", "regenie"
+#       Default: "snipar"
+#
+# --compute_bonferroni:str (optional)
+#       If the script should compute the Bonferroni correction 
+#       given the number of variants in the summary statistics.
+#       Default: "no" (ie. p > 5e-8)
+#
+# --phenotype:str (optional)
+#       Name of the phenotype to be used as title of the plots.
+#       If not provided, the plots will not have a title.
+#
+# --annotations:path (optional)
+#       Path to annotations path.
+#       If not provided, the plots will not have annotations.
 
 suppressPackageStartupMessages(library(cli))
 suppressPackageStartupMessages(library(ggrepel))
@@ -32,110 +49,139 @@ suppressPackageStartupMessages(library(dplyr))
 suppressPackageStartupMessages(library(tidyr))
 suppressPackageStartupMessages(library(data.table))
 suppressPackageStartupMessages(library(R.utils))
+suppressPackageStartupMessages(library(GenomicRanges))
+suppressPackageStartupMessages(library(rtracklayer))
 
 # Load personalized functions
 "%&%" <- function(a, b) paste0(a, b)
 source("utils/00_utils.R")
+source("utils/02_qq_plot.R")
+source("utils/03_manhattan_plot.R")
+source("utils/04_effect_sizes.R")
 
 # Process arguments
 args <- commandArgs(trailingOnly = TRUE)
+
 sumstats_file <- args[1]
 output_dir <- args[2]
 model <- if (length(args) < 3) "snipar" else args[3] # Default: snipar (v0.0.22)
-phenotype <- if (length(args) < 4) "" else args[4] # Default: empty
-annotations <- if (length(args) < 5) NULL else args[5] # Default: empty
+compute_bonferroni <- if (length(args) < 4) "no" else args[4] # Default: empty
+phenotype <- if (length(args) < 5) "" else args[5] # Default: empty
+#annotations <- if (length(args) < 6) NULL else args[6] # Default: empty
+annotations <- if (length(args) < 6) "no" else args[6] # Default: empty
 
-# Check that file and output directory exist
+# Parameter error handling
 if (!file.exists(sumstats_file)) {
+  # Check if the summary statistics exist
   cli_abort(c(
     "{sumstats_file} does not exist",
     "x" = "You've supplied a file that does not exist."
   ))
 }
 if (!dir.exists(output_dir)) {
+  # Provide a file in the directory for output
   output_dir <- output_dir %&% "."
 }
-if (!model %in% c("snipar", "regenie")) {
-  cli_abort(c(
-    "{model} does not exist",
-    "x" = "You've supplied an unsupported type of model. Options are: snipar (default), regenie"
-  ))
-}
 
-# Plot theme
-theme_set(
-  theme_bw() +
-    theme(
-      panel.border = element_blank(),
-      axis.line.x = element_line(color = "black",
-                                 linewidth = 0.5),
-      axis.line.y = element_line(color = "black",
-                                 linewidth = 0.5),
-      plot.title = element_text(face = "bold", size = 12, hjust = 0.5),
-      plot.subtitle = element_text(color = "#3d3d3d", size = 8),
-      plot.caption = element_text(color = "#3d3d3d", size = 8),
-      strip.text = element_text(color = "#3d3d3d", face = "bold", size = 12),
-      strip.background = element_rect(
-        color = "#3d3d3d", fill = "white", linewidth = 1
-      )
-    )
-)
-
-# Read the data to be analyzed
-df_sumstats <- fancy_process(
+#------------------------------------
+# Read the summary statistics ---
+raw_sumstats <- fancy_process(
   process = read_sumstats_file,
   message = "Reading " %&% sumstats_file,
   # Function parameters
   sumstats_path = sumstats_file,
   chunk_size = 1000000
 )
-
-
-# Change the table format to follow the template
-# from https://r-graph-gallery.com/101_Manhattan_plot.html
-if (model == "snipar") {
-  fgwas_results <- df_sumstats %>% 
-    dplyr::filter(!is.na(direct_log10_P)) %>%
-    dplyr::select(
-      "CHR" = chromosome,
-      "BP" = pos,
-      "SNP" = SNP,
-      "P" = direct_log10_P
-    ) %>%
-    mutate(P = 10^(-P))
-} else if (model == "regenie") {
-  fgwas_results <- df_sumstats %>%
-    dplyr::filter(!is.na(LOG10P)) %>%
-    dplyr::select(
-      "CHR" = CHROM,
-      "BP" = GENPOS,
-      "SNP" = ID,
-      "P" = P
-    )
+df_sumstats <- reformat_sumstats(raw_sumstats, model) # Reformat the table
+df_sumstats$CHR <- as.integer(df_sumstats$CHR)
+k <- length(unique(df_sumstats$SNP)) # Number of lines
+if (compute_bonferroni == "yes") {
+  bonferroni <- 0.05 / nrow(df_sumstats)
+} else {
+  bonferroni <- 5e-8 # Bonferroni adjusted P-Value
 }
-fgwas_results$CHR <- as.integer(fgwas_results$CHR)
-k_snps <- unique(fgwas_results$SNP)
-cli_alert_info(scales::comma(length(k_snps)) %&% " SNPs found in `" %&% sumstats_file %&% "`.")
-
-bonferroni <- 0.05 / nrow(fgwas_results) # Bonferroni adjusted P-Value
+cli_alert_info(scales::comma(k) %&% " SNPs found in `" %&% sumstats_file %&% "`.")
 cli_alert_info("Bonferroni adjusted P-value: " %&% scales::scientific(bonferroni))
 
-# Read the provided annotations table
-if (!is.null(annotations)) {
+print(head(df_sumstats))
+
+# Make the annotations ---
+if ( annotations == "yes" ) {
+  # Read the provided annotations table
   df_annotations <- fancy_process(
-    process = data.table::fread,
-    message = "Reading " %&% annotations,
+    process = annotate_genes_to_sig_snps,
+    message = "Annotating significant SNPs",
     ###
-    file = annotations,
-    sep = " "
+    gwas.dat = df_sumstats,
+    sig = bonferroni
   )
 }
+print(head(df_annotations))
 
-# Make the QQplot
-source("utils/02_qq_plot.R")
+### QQ PLOT ### ------------------------------------------
+qq_list <- get_qqvalues(df_sumstats)
+pvalues <- qq_list[[1]]
+lambda <- qq_list[[2]]
+qq_plot <- make_qqplot(pvalues, phenotype, lambda)
+cli_alert_info("Lambda genetic inflation factor: " %&% round(lambda, 4))
+export_plot(qq_plot, output_dir %&% "qqplot.png")
 
-# Make the Manhattan plot
-source("utils/03_manhattan_plot.R")
+### MANHATTAN PLOT ### ------------------------------------------
+list_manhattan <- format_for_manhattan(df_sumstats)
+df_manhattan <- list_manhattan[[1]]
+df_axis <- list_manhattan[[2]]
+if ( annotations == "yes" ) {
+  df_manhattan <- df_manhattan %>%
+    left_join(
+      df_annotations %>% select(GENE_ID, CHR, BP),
+      by = c("CHR", "BP")
+    )
+}
+manhattan_plot <- make_manhattan(df_manhattan, df_axis, phenotype, bonferroni)
+if ( annotations == "yes" ) {
+  manhattan_plot <- manhattan_plot +
+    geom_label_repel(
+      data = subset(df_manhattan, !is.na(df_manhattan$GENE_ID)),
+      aes(label = CHR %&% ":" %&% BP %&% " " %&% GENE_ID),
+      box.padding = 0.5,
+      point.padding = 0.3,
+      max.overlaps = 16,
+      size = 2.25
+    )
+}
+export_plot(manhattan_plot, output_dir %&% "manhattan_plot.png")
 
-# Make effect sizes plot (only available for `snipar`)
-if (model == "snipar") source("utils/04_effect_sizes.R")
+### EFFECTIVE SAMPLE SIZE ###
+make_n_plot <- function(df, title) {
+  k <- length(unique(df$SNP))
+  caption <- paste0(
+    "No. variants: ", scales::comma(k), "\n"
+  )
+  p <- df %>%
+    mutate(CHR = as.factor(CHR)) %>%
+    ggplot(aes(y = N, x = CHR, fill = CHR)) +
+    geom_violin(color = "black", alpha = 0) +
+    geom_boxplot(alpha = 0.65, width = 0.2) +
+    xlab("Chromosome") +
+    ylab("Effective sample size (N)") +
+    labs(
+      title = title,
+      caption = caption
+    ) +
+    scale_y_continuous(label = scales::comma) +
+    theme(legend.position = "none")
+  return(p)
+}
+effective_n_plot <- make_n_plot(df_sumstats, phenotype)
+export_plot(effective_n_plot, output_dir %&% "effective_n.png")
+
+### EFFECT SIZES ### ------------------------------------------
+# Effect sizes vs. p-values
+effect_pvalue_plot <- make_effectsizes_plot(df_sumstats, phenotype, bonferroni)
+export_plot(effect_pvalue_plot, output_dir %&% "effects_pvalues.png")
+
+# Effect sizes vs. MAF
+if ("MAF" %in% names(df_sumstats)) {
+  effects_maf_plot <- make_effectmaf_plot(df_sumstats, phenotype, bonferroni)
+  export_plot(effects_maf_plot, output_dir %&% "effects_maf.png")
+}
