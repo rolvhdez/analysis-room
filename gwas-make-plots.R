@@ -117,7 +117,6 @@ if ( annotations == "yes" ) {
   )
 }
 print(head(df_annotations))
-q()
 
 ### QQ PLOT ### ------------------------------------------
 qq_list <- get_qqvalues(df_sumstats)
