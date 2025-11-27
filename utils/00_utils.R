@@ -1,4 +1,5 @@
 # Helper functions -----
+check_out <- function(x) if (!dir.exists(x)) dir.create(x)
 fancy_process <- function(
   process,
   spinner_type = "simpleDotsScrolling",

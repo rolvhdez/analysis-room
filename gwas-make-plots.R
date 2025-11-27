@@ -49,6 +49,8 @@ suppressPackageStartupMessages(library(dplyr))
 suppressPackageStartupMessages(library(tidyr))
 suppressPackageStartupMessages(library(data.table))
 suppressPackageStartupMessages(library(R.utils))
+suppressPackageStartupMessages(library(GenomicRanges))
+suppressPackageStartupMessages(library(rtracklayer))
 
 # Load personalized functions
 "%&%" <- function(a, b) paste0(a, b)
@@ -63,7 +65,6 @@ args <- commandArgs(trailingOnly = TRUE)
 sumstats_file <- args[1]
 output_dir <- args[2]
 model <- if (length(args) < 3) "snipar" else args[3] # Default: snipar (v0.0.22)
-
 compute_bonferroni <- if (length(args) < 4) "no" else args[4] # Default: empty
 phenotype <- if (length(args) < 5) "" else args[5] # Default: empty
 annotations <- if (length(args) < 6) NULL else args[6] # Default: empty
@@ -101,19 +102,18 @@ if (compute_bonferroni == "yes") {
 cli_alert_info(scales::comma(k) %&% " SNPs found in `" %&% sumstats_file %&% "`.")
 cli_alert_info("Bonferroni adjusted P-value: " %&% scales::scientific(bonferroni))
 
-print(head(df_sumstats))
-
-# Read the annotations ---
+# Make the annotations ---
 if (!is.null(annotations)) {
   # Read the provided annotations table
   df_annotations <- fancy_process(
-    process = data.table::fread,
-    message = "Reading " %&% annotations,
+    process = annotate_genes_to_sig_snps,
+    message = "Annotating significant SNPs",
     ###
-    file = annotations,
-    sep = " "
+    gwas.dat = df_sumstats,
+    sig = bonferroni
   )
 }
+print(head(df_sumstats))
 
 ### QQ PLOT ### ------------------------------------------
 qq_list <- get_qqvalues(df_sumstats)
@@ -147,30 +147,6 @@ if (!is.null(annotations)) {
     )
 }
 export_plot(manhattan_plot, output_dir %&% "manhattan_plot.png")
-
-### EFFECTIVE SAMPLE SIZE ###
-make_n_plot <- function(df, title) {
-  k <- length(unique(df$SNP))
-  caption <- paste0(
-    "No. variants: ", scales::comma(k), "\n"
-  )
-  p <- df %>%
-    mutate(CHR = as.factor(CHR)) %>%
-    ggplot(aes(y = N, x = CHR, fill = CHR)) +
-    geom_violin(color = "black", alpha = 0) +
-    geom_boxplot(alpha = 0.65, width = 0.2) +
-    xlab("Chromosome") +
-    ylab("Effective sample size (N)") +
-    labs(
-      title = title,
-      caption = caption
-    ) +
-    scale_y_continuous(label = scales::comma) +
-    theme(legend.position = "none")
-  return(p)
-}
-effective_n_plot <- make_n_plot(df_sumstats, phenotype)
-export_plot(effective_n_plot, output_dir %&% "effective_n.png")
 
 ### EFFECT SIZES ### ------------------------------------------
 # Effect sizes vs. p-values

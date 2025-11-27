@@ -65,3 +65,20 @@ make_manhattan <- function(df, axis, title, bonferroni) {
     )
   return(m)
 }
+annotate_genes_to_sig_snps <- function(gwas.dat,sig=5e-8){
+  sig.df <- filter(gwas.dat,P<=sig)
+  nearest.gene <- c()
+  for (i in 1:dim(sig.df)[1]){
+    sig.gr <- GRanges(seqnames=sig.df$CHR[i],
+                    IRanges(start=sig.df$BP[i],end=sig.df$BP[i]))
+    ng <- gene.gr[(nearest(sig.gr,gene.gr))] %>% names(.)
+    nearest.gene <- append(nearest.gene,ng)
+  }
+  sig.df$nearest.gene <- nearest.gene
+  out.df <- c()
+  for (gene in unique(sig.df$nearest.gene)){
+    sub.df <- filter(sig.df,nearest.gene==gene) %>% arrange(P)
+    out.df <- rbind(out.df,sub.df[1,])
+  }
+  return(out.df)
+}
