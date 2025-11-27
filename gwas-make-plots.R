@@ -67,8 +67,7 @@ output_dir <- args[2]
 model <- if (length(args) < 3) "snipar" else args[3] # Default: snipar (v0.0.22)
 compute_bonferroni <- if (length(args) < 4) "no" else args[4] # Default: empty
 phenotype <- if (length(args) < 5) "" else args[5] # Default: empty
-#annotations <- if (length(args) < 6) NULL else args[6] # Default: empty
-annotations <- if (length(args) < 6) "no" else args[6] # Default: empty
+annotations <- if (length(args) < 6) NULL else args[6] # Default: empty
 
 # Parameter error handling
 if (!file.exists(sumstats_file)) {
@@ -103,10 +102,8 @@ if (compute_bonferroni == "yes") {
 cli_alert_info(scales::comma(k) %&% " SNPs found in `" %&% sumstats_file %&% "`.")
 cli_alert_info("Bonferroni adjusted P-value: " %&% scales::scientific(bonferroni))
 
-print(head(df_sumstats))
-
 # Make the annotations ---
-if ( annotations == "yes" ) {
+if (!is.null(annotations)) {
   # Read the provided annotations table
   df_annotations <- fancy_process(
     process = annotate_genes_to_sig_snps,
@@ -116,7 +113,7 @@ if ( annotations == "yes" ) {
     sig = bonferroni
   )
 }
-print(head(df_annotations))
+print(head(df_sumstats))
 
 ### QQ PLOT ### ------------------------------------------
 qq_list <- get_qqvalues(df_sumstats)
@@ -130,7 +127,7 @@ export_plot(qq_plot, output_dir %&% "qqplot.png")
 list_manhattan <- format_for_manhattan(df_sumstats)
 df_manhattan <- list_manhattan[[1]]
 df_axis <- list_manhattan[[2]]
-if ( annotations == "yes" ) {
+if (!is.null(annotations)) {
   df_manhattan <- df_manhattan %>%
     left_join(
       df_annotations %>% select(GENE_ID, CHR, BP),
@@ -138,7 +135,7 @@ if ( annotations == "yes" ) {
     )
 }
 manhattan_plot <- make_manhattan(df_manhattan, df_axis, phenotype, bonferroni)
-if ( annotations == "yes" ) {
+if (!is.null(annotations)) {
   manhattan_plot <- manhattan_plot +
     geom_label_repel(
       data = subset(df_manhattan, !is.na(df_manhattan$GENE_ID)),
@@ -150,30 +147,6 @@ if ( annotations == "yes" ) {
     )
 }
 export_plot(manhattan_plot, output_dir %&% "manhattan_plot.png")
-
-### EFFECTIVE SAMPLE SIZE ###
-make_n_plot <- function(df, title) {
-  k <- length(unique(df$SNP))
-  caption <- paste0(
-    "No. variants: ", scales::comma(k), "\n"
-  )
-  p <- df %>%
-    mutate(CHR = as.factor(CHR)) %>%
-    ggplot(aes(y = N, x = CHR, fill = CHR)) +
-    geom_violin(color = "black", alpha = 0) +
-    geom_boxplot(alpha = 0.65, width = 0.2) +
-    xlab("Chromosome") +
-    ylab("Effective sample size (N)") +
-    labs(
-      title = title,
-      caption = caption
-    ) +
-    scale_y_continuous(label = scales::comma) +
-    theme(legend.position = "none")
-  return(p)
-}
-effective_n_plot <- make_n_plot(df_sumstats, phenotype)
-export_plot(effective_n_plot, output_dir %&% "effective_n.png")
 
 ### EFFECT SIZES ### ------------------------------------------
 # Effect sizes vs. p-values

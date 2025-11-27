@@ -24,12 +24,12 @@ ibd <- fancy_process(
   sep = "\t"
 )
 
+# IBD mosaic ----
+ibd_colors <- c("IBD0" = "white", "IBD1" = "dodgerblue2", "IBD2" = "firebrick2")
 list_plots <- fancy_process(
   process = create_plots,
   message = "Creating plots",
   # Function parameters
   data = ibd
 )
-
-# Export the plots
 mapply(export_plot, list_plots, output_dir %&% names(list_plots))
