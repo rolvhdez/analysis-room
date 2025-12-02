@@ -130,13 +130,6 @@ export_plot(qq_plot, output_dir %&% "qqplot.png")
 list_manhattan <- format_for_manhattan(df_sumstats)
 df_manhattan <- list_manhattan[[1]]
 df_axis <- list_manhattan[[2]]
-if (annotations == "yes") {
-  # Add annotated genes to the data frame
-  # used for the Manhattan
-  df_manhattan <- df_manhattan %>%
-    left_join(df_annotations, by = "SNP")
-}
-
 manhattan_plot <- make_manhattan(df_manhattan, df_axis, phenotype, bonferroni)
 if (annotations == "yes") {
   # Add the annotation labels
