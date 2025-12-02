@@ -1,70 +1,56 @@
-# You can find the functions within the wrapper functions
-# in utils/00_utils.R
-
-chr <- fgwas_results %>% filter(P <= bonferroni) %>% pull(CHR)
-pos <- fgwas_results %>% filter(P <= bonferroni) %>% pull(BP)
-regions <- paste0(chr, ":", pos, ":", pos)
-
-# --- BIOMART QUERY ---
-k_query <- nrow(fgwas_results %>% filter(P <= bonferroni))
-biomart_message <- paste0(
-  "Querying ", scales::comma(k_query),
-  " significant SNPs ",
-  "in the BiomaRt database."
-)
-human_variation <- fancy_process(
-  process = biomaRt::useMart,
-  message = "Connecting to BiomaRt",
-  ###
-  biomart = "ENSEMBL_MART_SNP",
-  dataset = "hsapiens_snp",
-  host = "https://www.ensembl.org"
-)
-query_mart <- fancy_process(
-  process = biomaRt::getBM,
-  message = biomart_message,
-  ###
-  attributes = c("refsnp_id", "chr_name", "chrom_start", "associated_gene"),
-  filters = "chromosomal_region",
-  values = regions,
-  mart = human_variation
-)
-colnames(query_mart)[1] <- "SNP"
-ensemble_ids <- query_mart %>%
-  filter(if_all(everything(), ~ .x != "")) %>%
-  rename(GENE_ID = associated_gene)
-
-# --- NCBI ENTREZ QUERY ---
-ncbi_gene_mappings <- fancy_process(
-  process = ncbi_query,
-  message = "Querying NCBI (Entrez) for extra information",
-  # Function arguments
-  gene_list = ensemble_ids %>% pull(GENE_ID) %>% unique()
-)
-
-# Hard-type in case it returns NULL values
-ensemble_ids$SNP <- as.character(ensemble_ids$SNP)
-ensemble_ids$GENE_ID <- as.character(ensemble_ids$GENE_ID)
-ncbi_gene_mappings$GENE_ID <- as.character(ncbi_gene_mappings$GENE_ID)
-
-# Combine all results
-full_gene_map <- fgwas_results %>% 
-  inner_join(ensemble_ids, ., by = "SNP") %>% 
-  inner_join(ncbi_gene_mappings, ., by = "GENE_ID") %>% 
-  arrange(CHR, BP)
-
-# Export to text file (gzipped)
-if (nrow(full_gene_map) > 0) {
-  out_file <- output_dir %&% "gene_mappings.txt.gz"
-  gz <- gzfile(out_file, "w")
-  write.table(
-    full_gene_map,
-    file = gz,
-    sep = " ",
-    row.names = FALSE
+create_gene_ranges <- function() {
+  # Download the Ensembl variant annotations ---
+  ensembl_url <- "https://ftp.ensembl.org/pub/release-115/gtf/homo_sapiens/Homo_sapiens.GRCh38.115.gtf.gz"
+  ensembl_path <- "/tmp/Homo_sapiens.GRCh38.115.gtf.gz"
+  if(!file.exists(ensembl_path)){
+    cli_alert_info("Ensembl data base not found, downloading...")
+    download.file(
+      ensembl_url,
+      destfile = ensembl_path,
+      method = "wget",
+      extra = "-r -p --random-wait"
+    )
+  }
+  cli_alert_info("Reading " %&% ensembl_path %&% "...")
+  df_ensembl <- as.data.frame(rtracklayer::import(ensembl_path))
+  df_genes <- df_ensembl %>%
+    filter(
+      type == "gene",
+      gene_biotype == "protein_coding"
+    )
+  gene_ranges <- GRanges(
+    seqnames = df_genes$seqnames,
+    IRanges(start = df_genes$start, end = df_genes$end)
   )
-  close(gz)
-  cli_alert_success("Exported `" %&% out_file %&% "`")
-} else {
-  cli_alert_warning('Queries returned no results. No file will be produced.')
+  names(gene_ranges) <- df_genes$gene_name
+  return(gene_ranges)
+}
+annotate_genes_to_sig_snps <- function(sumstats, gene_range, sig = 5e-8){
+  #' Function obtained from MCPS' GitHub organization
+  #'
+  #' @param sumstats Data frame (formated) with GWAS summary statistics.
+  #' @param gene_range List of genetic ranges.
+  #' @param sig Significance threshold. Default is genome-wide significance.
+
+  require(dplyr)
+  sumstats_sig <- dplyr::filter(sumstats, P <= sig)
+
+  # Create the genetic ranges
+  gene_nearest <- c()
+  for (i in 1:dim(sumstats_sig)[1]) {
+    granges_sig <- GRanges(
+      seqnames = sumstats_sig$CHR[i],
+      ranges = IRanges(start = sumstats_sig$BP[i], end = sumstats_sig$BP[i])
+    )
+    # Find the nearest gene
+    g <- gene_range[(nearest(granges_sig, gene_range))] %>% names(.)
+    gene_nearest <- append(gene_nearest, g)
+  }
+  sumstats_sig$GENE <- gene_nearest
+  out_df <- c()
+  for (gene in unique(sumstats_sig$GENE)){
+    sub_df <- filter(sumstats_sig, GENE == gene) %>% arrange(P)
+    out_df <- rbind(out_df, sub_df[1,])
+  }
+  return(out_df)
 }

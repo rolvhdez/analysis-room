@@ -52,7 +52,7 @@ read_sumstats_file <- function(sumstats_path, chunk_size = 1000000) {
     df <- data.table::rbindlist(list(df, c))
   }
   close(con)
-  df # Return
+  return(df) # Return
 }
 
 reformat_sumstats <- function(sumstats, model) {
@@ -162,10 +162,10 @@ theme_set(
                                  linewidth = 0.5),
       axis.line.y = element_line(color = "black",
                                  linewidth = 0.5),
-      plot.title = element_text(face = "bold", size = 12, hjust = 0.5),
+      plot.title = element_text(face = "bold", size = 10, hjust = 0.5),
       plot.subtitle = element_text(color = "#3d3d3d", size = 8),
       plot.caption = element_text(color = "#3d3d3d", size = 8),
-      strip.text = element_text(color = "#3d3d3d", face = "bold", size = 12),
+      strip.text = element_text(color = "#3d3d3d", face = "bold", size = 10),
       strip.background = element_rect(
         color = "#3d3d3d", fill = "white", linewidth = 1
       )

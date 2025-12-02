@@ -39,8 +39,9 @@
 #       If not provided, the plots will not have a title.
 #
 # --annotations:path (optional)
-#       Path to annotations path.
+#       Will perform annotations for the plots.
 #       If not provided, the plots will not have annotations.
+#       Default: "no".
 
 suppressPackageStartupMessages(library(cli))
 suppressPackageStartupMessages(library(ggrepel))
@@ -55,6 +56,7 @@ suppressPackageStartupMessages(library(rtracklayer))
 # Load personalized functions
 "%&%" <- function(a, b) paste0(a, b)
 source("utils/00_utils.R")
+source("utils/01_map_genes.R")
 source("utils/02_qq_plot.R")
 source("utils/03_manhattan_plot.R")
 source("utils/04_effect_sizes.R")
@@ -67,7 +69,7 @@ output_dir <- args[2]
 model <- if (length(args) < 3) "snipar" else args[3] # Default: snipar (v0.0.22)
 compute_bonferroni <- if (length(args) < 4) "no" else args[4] # Default: empty
 phenotype <- if (length(args) < 5) "" else args[5] # Default: empty
-annotations <- if (length(args) < 6) NULL else args[6] # Default: empty
+annotations <- if (length(args) < 6) "no" else args[6] # Default: empty
 
 # Parameter error handling
 if (!file.exists(sumstats_file)) {
@@ -103,15 +105,16 @@ cli_alert_info(scales::comma(k) %&% " SNPs found in `" %&% sumstats_file %&% "`.
 cli_alert_info("Bonferroni adjusted P-value: " %&% scales::scientific(bonferroni))
 
 # Make the annotations ---
-if (!is.null(annotations)) {
-  # Read the provided annotations table
-  df_annotations <- fancy_process(
-    process = annotate_genes_to_sig_snps,
-    message = "Annotating significant SNPs",
-    ###
-    gwas.dat = df_sumstats,
+if (annotations == "yes") {
+  genes <- create_gene_ranges()
+  df_annotations <- annotate_genes_to_sig_snps(
+    sumstats = df_sumstats,
+    gene_range = genes,
     sig = bonferroni
   )
+  df_annotations <- df_annotations %>% select(SNP, GENE)
+  df_sumstats <- df_sumstats %>% 
+    left_join(df_annotations, by = "SNP")
 }
 print(head(df_sumstats))
 
@@ -127,19 +130,20 @@ export_plot(qq_plot, output_dir %&% "qqplot.png")
 list_manhattan <- format_for_manhattan(df_sumstats)
 df_manhattan <- list_manhattan[[1]]
 df_axis <- list_manhattan[[2]]
-if (!is.null(annotations)) {
+if (annotations == "yes") {
+  # Add annotated genes to the data frame
+  # used for the Manhattan
   df_manhattan <- df_manhattan %>%
-    left_join(
-      df_annotations %>% select(GENE_ID, CHR, BP),
-      by = c("CHR", "BP")
-    )
+    left_join(df_annotations, by = "SNP")
 }
+
 manhattan_plot <- make_manhattan(df_manhattan, df_axis, phenotype, bonferroni)
-if (!is.null(annotations)) {
+if (annotations == "yes") {
+  # Add the annotation labels
   manhattan_plot <- manhattan_plot +
     geom_label_repel(
-      data = subset(df_manhattan, !is.na(df_manhattan$GENE_ID)),
-      aes(label = CHR %&% ":" %&% BP %&% " " %&% GENE_ID),
+      data = subset(df_manhattan, !is.na(df_manhattan$GENE)),
+      aes(label = SNP %&% " " %&% GENE),
       box.padding = 0.5,
       point.padding = 0.3,
       max.overlaps = 16,
