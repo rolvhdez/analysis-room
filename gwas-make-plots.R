@@ -109,7 +109,7 @@ if (annotations == "yes") {
   # Check that there are significant SNPs to annotate
   sig_k <- df_sumstats %>% filter(P <= bonferroni) %>% pull(SNP)
   if (length(sig_k) > 0) {
-    cli::cli_alert_warning(scales::comma(sig_k) %&% "SNPs found at p <=" %&% bonferroni)
+    cli::cli_alert_warning(scales::comma(length(sig_k)) %&% " SNPs found at p <=" %&% bonferroni)
     genes <- create_gene_ranges()
     df_annotations <- annotate_genes_to_sig_snps(
       sumstats = df_sumstats,

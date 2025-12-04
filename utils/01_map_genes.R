@@ -8,7 +8,8 @@ create_gene_ranges <- function() {
       ensembl_url,
       destfile = ensembl_path,
       method = "wget",
-      extra = "-r -p --random-wait"
+      extra = "-r -p --random-wait",
+      quiet = TRUE
     )
   }
   cli_alert_info("Reading " %&% ensembl_path %&% "...")
