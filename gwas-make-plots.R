@@ -106,15 +106,22 @@ cli_alert_info("Bonferroni adjusted P-value: " %&% scales::scientific(bonferroni
 
 # Make the annotations ---
 if (annotations == "yes") {
-  genes <- create_gene_ranges()
-  df_annotations <- annotate_genes_to_sig_snps(
-    sumstats = df_sumstats,
-    gene_range = genes,
-    sig = bonferroni
-  )
-  df_annotations <- df_annotations %>% select(SNP, GENE)
-  df_sumstats <- df_sumstats %>% 
-    left_join(df_annotations, by = "SNP")
+  # Check that there are significant SNPs to annotate
+  sig_k <- df_sumstats %>% filter(P <= bonferroni) %>% pull(SNP)
+  if (length(sig_k) > 0) {
+    cli::cli_alert_warning(scales::comma(sig_k) %&% "SNPs found at p <=" %&% bonferroni)
+    genes <- create_gene_ranges()
+    df_annotations <- annotate_genes_to_sig_snps(
+      sumstats = df_sumstats,
+      gene_range = genes,
+      sig = bonferroni
+    )
+    df_annotations <- df_annotations %>% select(SNP, GENE)
+    df_sumstats <- df_sumstats %>%
+      left_join(df_annotations, by = "SNP")
+  } else {
+    cli::cli_alert_warning("No significant SNPs were found at p <= " %&% bonferroni %&% ". Skipping annotation.")
+  }
 }
 print(head(df_sumstats))
 
@@ -131,7 +138,7 @@ list_manhattan <- format_for_manhattan(df_sumstats)
 df_manhattan <- list_manhattan[[1]]
 df_axis <- list_manhattan[[2]]
 manhattan_plot <- make_manhattan(df_manhattan, df_axis, phenotype, bonferroni)
-if (annotations == "yes") {
+if ("GENE" %in% names(df_sumstats)) {
   # Add the annotation labels
   manhattan_plot <- manhattan_plot +
     geom_label_repel(
