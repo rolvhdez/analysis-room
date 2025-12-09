@@ -16,7 +16,6 @@ RUN apt-get update && \
     libxml2-dev && \
     rm -rf /var/lib/apt/lists/*
 
-
 # Copy the list of R packages to install first (for better caching) ---
 # COPY renv/activate.R renv/activate.R
 # COPY renv/settings.json renv/settings.json
@@ -40,3 +39,4 @@ RUN R -e "install.packages(c('extrafont', 'sysfonts', 'showtext', 'remotes'))"
 # Copy the rest of the pipeline code ---
 COPY utils/ utils/
 COPY gwas-make-plots.R gwas-make-plots.R
+COPY effect-size-comparison.R effect-size-comparison.R

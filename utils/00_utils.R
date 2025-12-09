@@ -90,6 +90,7 @@ reformat_sumstats <- function(sumstats, model) {
   if (model == "snipar") {
     x <- x %>% 
       dplyr::mutate(
+        BETA = BETA * -1,
         P = 10^(-P),
         MAF = ifelse(MAF > 0.5, 1 - MAF, MAF)
       )
@@ -193,8 +194,10 @@ font_add_google("Source Sans 3", "source-sans-3")
 # Custom colors ---
 # https://coolors.co/palette/ff595e-ffca3a-8ac926-1982c4-6a4c93
 red <- "#ff595e"
-blue <- "#1982c4"
+yellow <- "#FFCA3A"
 green <- "#8AC926"
+blue <- "#1982c4"
+purple <- "#6A4C93"
 
 # Plot theme
 theme_set(
