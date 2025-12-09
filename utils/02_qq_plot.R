@@ -33,9 +33,11 @@ make_qqplot <- function(pvalues, title, lambda){
   x <- pvalues %>%
     filter(observed != Inf) %>%
     ggplot(aes(x = theoretical, y = observed)) +
-    geom_point(size = 1.33, shape = 1) +
-    geom_smooth(method = "lm",
-      linetype = "dashed", color = "red"
+    geom_point(size = 2, shape = 16, alpha = 0.65, color = "black") +
+    geom_abline(
+      slope = 1 * lambda, intercept = 0,
+      color = red, linewidth = 1, alpha = 0.85,
+      linetype = "dashed"
     ) +
     xlab(expression(Theoretical ~ -log[10](italic(p)))) +
     ylab(expression(Observed ~ -log[10](italic(p)))) +

@@ -21,20 +21,15 @@ make_manhattan <- function(df, axis, title, bonferroni) {
   )
   m <- df %>%
     ggplot(aes(x = BP_CUM, y = -log10(P))) +
-    geom_point(
-      aes(color = as.factor(CHR)),
-      size = 1.3, shape = 1
-    ) +
-    # Significance line
     geom_hline( # High
       yintercept = -log10(bonferroni),
-      color = "red",
-      linetype = "dashed"
+      color = red,
+      linetype = "dashed",
+      alpha = 0.8
     ) +
     geom_point(
-      data = df[df$P < 5e-8],
       aes(color = as.factor(CHR)),
-      size = 2.3, shape = 16, color = "green"
+      shape = 16, alpha = 0.85
     ) +
     # Axis labels
     xlab("Chromosome") +

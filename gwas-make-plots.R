@@ -141,13 +141,13 @@ manhattan_plot <- make_manhattan(df_manhattan, df_axis, phenotype, bonferroni)
 if ("GENE" %in% names(df_sumstats)) {
   # Add the annotation labels
   manhattan_plot <- manhattan_plot +
-    geom_label_repel(
+    geom_text_repel(
       data = subset(df_manhattan, !is.na(df_manhattan$GENE)),
-      aes(label = SNP %&% " " %&% GENE),
+      aes(label = GENE),
       box.padding = 0.5,
       point.padding = 0.3,
       max.overlaps = 16,
-      size = 2.25
+      size = 3
     )
 }
 export_plot(manhattan_plot, output_dir %&% "manhattan_plot.png")
@@ -155,10 +155,42 @@ export_plot(manhattan_plot, output_dir %&% "manhattan_plot.png")
 ### EFFECT SIZES ### ------------------------------------------
 # Effect sizes vs. p-values
 effect_pvalue_plot <- make_effectsizes_plot(df_sumstats, phenotype, bonferroni)
+if ("GENE" %in% names(df_sumstats)) {
+  # Add the annotation labels
+  effect_pvalue_plot <- effect_pvalue_plot +
+    geom_text_repel(
+      data = subset(df_sumstats, !is.na(df_sumstats$GENE)),
+      aes(
+        x = BETA,
+        y = -log10(P),
+        label = GENE
+      ),
+      box.padding = 0.5,
+      point.padding = 0.3,
+      max.overlaps = 16,
+      size = 3
+    )
+}
 export_plot(effect_pvalue_plot, output_dir %&% "effects_pvalues.png")
 
 # Effect sizes vs. MAF
 if ("MAF" %in% names(df_sumstats)) {
   effects_maf_plot <- make_effectmaf_plot(df_sumstats, phenotype, bonferroni)
+  if ("GENE" %in% names(df_sumstats)) {
+    # Add the annotation labels
+    effects_maf_plot <- effects_maf_plot +
+      geom_text_repel(
+        data = subset(df_sumstats, !is.na(df_sumstats$GENE)),
+        aes(
+          x = MAF,
+          y = BETA,
+          label = GENE
+        ),
+        box.padding = 0.5,
+        point.padding = 0.3,
+        max.overlaps = 16,
+        size = 3
+      )
+  }
   export_plot(effects_maf_plot, output_dir %&% "effects_maf.png")
 }

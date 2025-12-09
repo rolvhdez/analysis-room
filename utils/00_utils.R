@@ -88,7 +88,11 @@ reformat_sumstats <- function(sumstats, model) {
     stats::setNames(spec$new_names)
   # Apply model-specific transformations
   if (model == "snipar") {
-    x <- x %>% dplyr::mutate(P = 10^(-P))
+    x <- x %>% 
+      dplyr::mutate(
+        P = 10^(-P),
+        MAF = ifelse(MAF > 0.5, 1 - MAF, MAF)
+      )
   }
   
   return(x)
@@ -152,26 +156,6 @@ ncbi_query <- function(gene_list){
   ncbi_annotations <- dplyr::bind_rows(ncbi_annotations)
   return(ncbi_annotations)
 }
-
-# Plot theme
-theme_set(
-  theme_bw() +
-    theme(
-      panel.border = element_blank(),
-      axis.line.x = element_line(color = "black",
-                                 linewidth = 0.5),
-      axis.line.y = element_line(color = "black",
-                                 linewidth = 0.5),
-      plot.title = element_text(face = "bold", size = 10, hjust = 0.5),
-      plot.subtitle = element_text(color = "#3d3d3d", size = 8),
-      plot.caption = element_text(color = "#3d3d3d", size = 8),
-      strip.text = element_text(color = "#3d3d3d", face = "bold", size = 10),
-      strip.background = element_rect(
-        color = "#3d3d3d", fill = "white", linewidth = 1
-      )
-    )
-)
-
 export_plot <- function(plot_obj, file_path, 
                        width = 1080, height = 1080 * 0.75, 
                        res = 150, units = "px") {
@@ -200,3 +184,34 @@ export_plot <- function(plot_obj, file_path,
   # Return the file path invisibly
   invisible(file_path)
 }
+
+# Custom font ---
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(showtext))
+font_add_google("Source Sans 3", "source-sans-3")
+
+# Custom colors ---
+# https://coolors.co/palette/ff595e-ffca3a-8ac926-1982c4-6a4c93
+red <- "#ff595e"
+blue <- "#1982c4"
+green <- "#8AC926"
+
+# Plot theme
+theme_set(
+  theme_bw() +
+    theme(
+      text = element_text(family = "Source Sans 3"),
+      panel.border = element_blank(),
+      axis.line.x = element_line(color = "black",
+                                 linewidth = 0.5),
+      axis.line.y = element_line(color = "black",
+                                 linewidth = 0.5),
+      plot.title = element_text(face = "bold", size = 10, hjust = 0.5),
+      plot.subtitle = element_text(color = "#3d3d3d", size = 8),
+      plot.caption = element_text(color = "#3d3d3d", size = 8),
+      strip.text = element_text(color = "#3d3d3d", face = "bold", size = 10),
+      strip.background = element_rect(
+        color = "#3d3d3d", fill = "white", linewidth = 1
+      )
+    )
+)
